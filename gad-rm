@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# gad-rm.py $@ && echo "rm $@"
+gad-rm.py $@ && /bin/rm $@
