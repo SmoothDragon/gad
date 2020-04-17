@@ -4,6 +4,28 @@ import json
 import logging
 import os
 import pathlib
+import sqlite3
+import xxhash
+
+gad_sql = '''
+CREATE TABLE IF NOT EXISTS action(
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(8) UNIQUE NOT NULL
+    );
+
+CREATE TABLE IF NOT EXISTS known(
+    ID INT PRIMARY KEY,
+    size INT NOT NULL,
+    ctime INT NOT NULL,
+    actionID INT NOT NULL REFERENCES action(ID)
+    );
+
+CREATE TABLE IF NOT EXISTS files(
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    hash INT NOT NULL REFERENCES known(ID)
+    );
+'''
 
 def gadroot(item):
     item = pathlib.Path(item).resolve()
@@ -19,7 +41,7 @@ def gadroot(item):
     for path in directories:
         gadpath = path/'.gad'
         if gadpath.exists():
-            return item
+            return gadpath
     else:
         return None
 
@@ -31,8 +53,17 @@ def gad_config_init(gadpath):
               'priority': [],
               'ignore': ['.gad', '.git', '.direnv'],
              }
-    with open(filename, mode='w') as outfile:
+    with open(str(filename), mode='w') as outfile:
         json.dump(config, outfile)
+
+def gad_sql_init(gadpath):
+    db = gadpath/'gad.sqlite3'
+    conn = sqlite3.connect(db)
+    conn.executescript(gad_sql)
+    actions = [(None, action) for action in ['ASSET', 'TRASH', 'NEW', 'DUPS']]
+    conn.executemany('INSERT INTO action VALUES(?, ?);', actions)
+    conn.commit()
+
 
 def subtree(path, ignore_list):
     '''Return all files in directory and below that do not contain items in ignore_list.
@@ -40,29 +71,30 @@ def subtree(path, ignore_list):
     if len(ignore_list) == 0:
         return path.rglob('*')
     else:
-        return (item for item in subtree(path, ignore_list[1:]) if ignore_list[0] not in str(item))
+        return (item for item in subtree(path, ignore_list[1:]) 
+                if not item.is_dir() and ignore_list[0] not in str(item))
 
-def gad_sql_init(path):
+def file_hash(filename):
+    '''A computationally fast hash, using the filesize as seed.
+    Returns a 64-bit signed integer
+    '''
+    filehash = xxhash.xxh64(seed=os.stat(filename).st_size)
+    with open(filename, "rb") as infile:
+        for chunk in iter(lambda: infile.read(4096), b""):
+            filehash.update(chunk)
+    return filehash.intdigest() - (1<<63)  # Signed integer
+
+def gad_path_init(path):
     filename = path/'.gad/config.json'
-    with open(filename, mode='r') as infile:
+    with open(str(filename), mode='r') as infile:
         config = json.load(infile)
     ignore = config['ignore']
-
-    
-    for name in path.rglob('*'):
-        for item in ignore:
-            if item in str(name):
-                break
-        else:
-            print(name)
     for name in subtree(path, ignore):
-        print(name)
+        if len(str(name)) >= 4095:
+            raise Exception('Path length exceeded.')
+        print(file_hash(name), name)
     # Walk dir
     # Skip .gad dir
-    # Create db in nondescrutive way
-    # For things not in db, add 
-    # ASSET, TRASH, ADD, DEL, UNK, DUP
-    # action, time, filename, qhash, size,
 
 def gad_init(directory='.'):
     item = pathlib.Path(directory).resolve()
@@ -72,7 +104,7 @@ def gad_init(directory='.'):
     if not gadpath.exists():
         pathlib.Path(gadpath).mkdir(parents=True, exist_ok=True)
         gad_config_init(gadpath)
-    gad_sql_init(item)
+        gad_sql_init(gadpath)
 
 
 class gad:
