@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+'''Master script to run all gad subprograms.
+'''
+
+import sys
+import gad
+
+options = 'init|status|add|commit|scan'
+if len(sys.argv) == 1:
+    print('gad tracks files that have been protected and deleted.')
+    print('  Options are [%s]' % options)
+    exit(0)
+
+options = options.split('|')
+if sys.argv[1] not in options:
+    print('%s is not a valid option' % sys.argv[1])
+
+if len(sys.argv) > 2:
+    item = sys.argv[2]
+else:
+    item = '.'
+if sys.argv[1] == 'init':
+    result = gad.gadroot(item)
+    if result is None:
+        gad.gad_init(item)
+elif sys.argv[1] == 'scan':
+    gad.gad_path_init(item)

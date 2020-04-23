@@ -84,7 +84,8 @@ def file_hash(filename):
             filehash.update(chunk)
     return filehash.intdigest() - (1<<63)  # Signed integer
 
-def gad_path_init(path):
+def gad_path_init(directory):
+    path = pathlib.Path(directory).resolve()
     filename = path/'.gad/config.json'
     with open(str(filename), mode='r') as infile:
         config = json.load(infile)
