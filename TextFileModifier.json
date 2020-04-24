@@ -1,0 +1,9 @@
+{
+  "filename":"~/.bash_aliases",
+  "lines":[
+    "# Modify rm to run a safety check before deleting",
+    "alias rm=gad-rm"
+  ],
+  "confirm":"y"
+}
+
