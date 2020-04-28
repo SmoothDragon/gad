@@ -1,3 +1,6 @@
+# Install dependencies
+# pip install -r requirements.txt
+
 install:
 	cp gad-rm ~/bin
 	cp gad-rm.py ~/bin
