@@ -25,6 +25,12 @@ CREATE TABLE IF NOT EXISTS files(
     name TEXT UNIQUE NOT NULL,
     hash INT NOT NULL REFERENCES known(ID)
     );
+
+DROP TABLE IF EXISTS scan;
+CREATE TABLE IF NOT EXISTS scan(
+    name TEXT PRIMATY KEY
+    ,hash INTEGER NOT NULL
+    );
 '''
 
 def gadroot(item):
@@ -84,16 +90,25 @@ def file_hash(filename):
             filehash.update(chunk)
     return filehash.intdigest() - (1<<63)  # Signed integer
 
-def gad_path_init(directory):
-    path = pathlib.Path(directory).resolve()
+def gad_scan(gadroot):
+    path = pathlib.Path(gadroot).resolve()
+    gadpath = path/'.gad'
     filename = path/'.gad/config.json'
     with open(str(filename), mode='r') as infile:
         config = json.load(infile)
     ignore = config['ignore']
-    for name in subtree(path, ignore):
-        if len(str(name)) >= 4095:
-            raise Exception('Path length exceeded.')
-        print(file_hash(name), name)
+    # for name in subtree(path, ignore):
+        # if len(str(name)) >= 4095:
+            # raise Exception('Path length exceeded.')
+        # print(file_hash(name), name)
+    db = gadpath/'gad.sqlite3'
+    conn = sqlite3.connect(db)
+    conn.executescript(gad_sql)
+    actions = [(file_hash(name), str(name)) for name in subtree(path, ignore)]
+    print(actions)
+    conn.executemany('INSERT INTO scan VALUES(?, ?);', actions)
+    conn.commit()
+    print(actions)
     # Walk dir
     # Skip .gad dir
 

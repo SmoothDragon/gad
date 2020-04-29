@@ -25,4 +25,4 @@ if sys.argv[1] == 'init':
     if result is None:
         gad.gad_init(item)
 elif sys.argv[1] == 'scan':
-    gad.gad_path_init(item)
+    gad.gad_scan(item)
